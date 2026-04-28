@@ -7,19 +7,17 @@ import { useNavigate } from "react-router-dom";
 
 const CATEGORIES = ["Ropa", "Electrónica", "Calzado", "Accesorios", "Alimentos", "Otro"];
 
-async function uploadToCloudinary(file) {
+async function uploadToImgBB(file) {
   const formData = new FormData();
-  formData.append("file", file);
-  formData.append("upload_preset", import.meta.env.VITE_CLOUDINARY_PRESET);
+  formData.append("image", file);
   const res = await fetch(
-    `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUDINARY_CLOUD}/image/upload`,
+    `https://api.imgbb.com/1/upload?key=${import.meta.env.VITE_IMGBB_KEY}`,
     { method: "POST", body: formData }
   );
   const data = await res.json();
-  if (!data.secure_url) throw new Error("Error al subir imagen");
-  return data.secure_url;
+  if (!data.data?.url) throw new Error("Error al subir imagen");
+  return data.data.url;
 }
-
 
 export default function RegisterSale() {
   const { user } = useAuth();
@@ -58,7 +56,7 @@ export default function RegisterSale() {
     try {
       let photoURL = null;
       if (photo) {
-        photoURL = await uploadToCloudinary(photo);
+        photoURL = await uploadToImgBB(photo);
       }
 
       const saleData = {
@@ -85,7 +83,7 @@ export default function RegisterSale() {
       setTimeout(() => navigate("/"), 1500);
     } catch (err) {
       console.error(err);
-      setToast("Error al guardar: " + err.message);
+      setToast("Error: " + err.message);
     }
 
     setSaving(false);
@@ -102,7 +100,6 @@ export default function RegisterSale() {
       <p style={{ fontSize: 13, color: "var(--gray-500)", marginBottom: 16 }}>{user.displayName}</p>
 
       <form onSubmit={handleSubmit}>
-        {/* Foto */}
         <div style={CARD}>
           <label style={LABEL}>Foto del producto</label>
           {photoPreview
@@ -118,7 +115,6 @@ export default function RegisterSale() {
           <input ref={fileRef} type="file" accept="image/*" capture="environment" onChange={onPhoto} style={{ display: "none" }} />
         </div>
 
-        {/* Datos */}
         <div style={CARD}>
           <div style={{ marginBottom: 12 }}>
             <label style={LABEL}>Producto *</label>
@@ -153,7 +149,6 @@ export default function RegisterSale() {
           </div>
         </div>
 
-        {/* Total y visibilidad */}
         <div style={CARD}>
           {form.price && form.quantity && (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, paddingBottom: 14, borderBottom: "1px solid var(--gray-100)" }}>
