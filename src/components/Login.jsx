@@ -1,49 +1,94 @@
-import { signInWithPopup } from "firebase/auth";
-import { auth, googleProvider } from "../firebase";
+import { useState } from "react";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { auth } from "../firebase";
 import { useAuth } from "../App";
 import { Navigate } from "react-router-dom";
 
 export default function Login() {
   const { user } = useAuth();
+  const [mode, setMode] = useState("login");
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
   if (user) return <Navigate to="/" replace />;
 
-  async function loginGoogle() {
+  function set(k, v) { setForm(f => ({ ...f, [k]: v })); setError(""); }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
     try {
-      await signInWithPopup(auth, googleProvider);
+      if (mode === "register") {
+        if (!form.name.trim()) { setError("Escribe tu nombre"); setLoading(false); return; }
+        const cred = await createUserWithEmailAndPassword(auth, form.email, form.password);
+        await updateProfile(cred.user, { displayName: form.name.trim() });
+      } else {
+        await signInWithEmailAndPassword(auth, form.email, form.password);
+      }
     } catch (err) {
-      console.error(err);
+      const msgs = {
+        "auth/email-already-in-use": "Este correo ya está registrado",
+        "auth/invalid-email": "Correo inválido",
+        "auth/weak-password": "La contraseña debe tener al menos 6 caracteres",
+        "auth/user-not-found": "No existe una cuenta con ese correo",
+        "auth/wrong-password": "Contraseña incorrecta",
+        "auth/invalid-credential": "Correo o contraseña incorrectos",
+      };
+      setError(msgs[err.code] || "Ocurrió un error, intenta de nuevo");
     }
+    setLoading(false);
   }
+
+  const LABEL = { display: "block", fontSize: 12, fontWeight: 500, color: "var(--gray-700)", marginBottom: 6 };
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--gray-50)" }}>
-      <div style={{ background: "#fff", border: "1px solid var(--gray-100)", borderRadius: "var(--radius-lg)", padding: "2.5rem 2rem", width: "100%", maxWidth: 360, boxShadow: "var(--shadow-md)", textAlign: "center" }}>
+      <div style={{ background: "#fff", border: "1px solid var(--gray-100)", borderRadius: "var(--radius-lg)", padding: "2.5rem 2rem", width: "100%", maxWidth: 380, boxShadow: "var(--shadow-md)" }}>
 
-        <div style={{ width: 52, height: 52, background: "var(--teal-light)", borderRadius: "var(--radius-md)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1.25rem", fontSize: 24 }}>
-          📦
+        <div style={{ textAlign: "center", marginBottom: "1.75rem" }}>
+          <div style={{ width: 52, height: 52, background: "var(--teal-light)", borderRadius: "var(--radius-md)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1rem", fontSize: 24 }}>📦</div>
+          <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 4 }}>Vendix</h1>
+          <p style={{ fontSize: 13, color: "var(--gray-500)" }}>Registro compartido de ventas</p>
         </div>
 
-        <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 6 }}>Vendix</h1>
-        <p style={{ fontSize: 13, color: "var(--gray-500)", marginBottom: "2rem", lineHeight: 1.6 }}>
-          Registro compartido de ventas para tu equipo
-        </p>
+        <div style={{ display: "flex", background: "var(--gray-100)", borderRadius: "var(--radius-sm)", padding: 3, marginBottom: "1.5rem" }}>
+          {["login", "register"].map(m => (
+            <button key={m} onClick={() => { setMode(m); setError(""); }} style={{ flex: 1, padding: "7px", border: "none", borderRadius: 6, fontSize: 13, fontWeight: 500, background: mode === m ? "#fff" : "transparent", color: mode === m ? "var(--gray-900)" : "var(--gray-500)", boxShadow: mode === m ? "var(--shadow-sm)" : "none", transition: ".15s", cursor: "pointer" }}>
+              {m === "login" ? "Iniciar sesión" : "Crear cuenta"}
+            </button>
+          ))}
+        </div>
 
-        <button onClick={loginGoogle} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, width: "100%", padding: "10px 16px", background: "#fff", border: "1px solid var(--gray-300)", borderRadius: "var(--radius-sm)", fontSize: 14, fontWeight: 500, transition: "background .15s" }}
-          onMouseEnter={e => e.currentTarget.style.background = "var(--gray-50)"}
-          onMouseLeave={e => e.currentTarget.style.background = "#fff"}
-        >
-          <svg width="18" height="18" viewBox="0 0 18 18">
-            <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
-            <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
-            <path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.347 2.827.957 4.042l3.007-2.332z"/>
-            <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z"/>
-          </svg>
-          Entrar con Google
-        </button>
+        <form onSubmit={handleSubmit}>
+          {mode === "register" && (
+            <div style={{ marginBottom: 14 }}>
+              <label style={LABEL}>Nombre</label>
+              <input type="text" placeholder="Tu nombre completo" value={form.name} onChange={e => set("name", e.target.value)} required autoFocus />
+            </div>
+          )}
 
-        <p style={{ fontSize: 11, color: "var(--gray-500)", marginTop: "1.5rem" }}>
-          Solo accesible para tu equipo
-        </p>
+          <div style={{ marginBottom: 14 }}>
+            <label style={LABEL}>Correo electrónico</label>
+            <input type="email" placeholder="correo@ejemplo.com" value={form.email} onChange={e => set("email", e.target.value)} required />
+          </div>
+
+          <div style={{ marginBottom: error ? 12 : 20 }}>
+            <label style={LABEL}>Contraseña</label>
+            <input type="password" placeholder={mode === "register" ? "Mínimo 6 caracteres" : "Tu contraseña"} value={form.password} onChange={e => set("password", e.target.value)} required />
+          </div>
+
+          {error && (
+            <div style={{ background: "#FCEBEB", color: "#A32D2D", fontSize: 13, padding: "9px 12px", borderRadius: "var(--radius-sm)", marginBottom: 14, border: "1px solid #F7C1C1" }}>
+              {error}
+            </div>
+          )}
+
+          <button type="submit" disabled={loading} style={{ width: "100%", padding: "10px", background: loading ? "var(--gray-300)" : "var(--teal)", color: "#fff", border: "none", borderRadius: "var(--radius-sm)", fontSize: 14, fontWeight: 600, cursor: loading ? "not-allowed" : "pointer", transition: "background .15s" }}>
+            {loading ? "Cargando..." : mode === "login" ? "Entrar" : "Crear cuenta"}
+          </button>
+        </form>
       </div>
     </div>
   );
