@@ -24,7 +24,7 @@ export default function Login() {
         </div>
 
         <h1 style={{ fontSize: 22, fontWeight: 600, marginBottom: 6 }}>Vendix</h1>
-        <p style={{ fontSize: 13, color: "var(--gray-500)", marginBottom: 2rem", lineHeight: 1.6 }}>
+        <p style={{ fontSize: 13, color: "var(--gray-500)", marginBottom: "2rem", lineHeight: 1.6 }}>
           Registro compartido de ventas para tu equipo
         </p>
 
