@@ -1,0 +1,20 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Ventas públicas: cualquier usuario autenticado puede leer y crear
+    match /sales/{saleId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.sellerId == request.auth.uid;
+      allow update, delete: if request.auth != null
+                             && resource.data.sellerId == request.auth.uid;
+    }
+
+    // Ventas privadas: solo el dueño puede leer/escribir
+    match /users/{userId}/privateSales/{saleId} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == userId;
+    }
+  }
+}
