@@ -1,8 +1,8 @@
-import { useState } from react;
-import { Outlet, NavLink, useNavigate } from react-router-dom;
-import { signOut } from firebaseauth;
-import { auth } from ..firebase;
-import { useAuth } from ..App;
+import { useState } from "react";
+import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { signOut } from "firebase/auth";
+import { auth } from "../firebase";
+import { useAuth } from "../App";
 
 const NAV = [
   { to ,          label Panel,    end true,  icon HomeIcon  },
