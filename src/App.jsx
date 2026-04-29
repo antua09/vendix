@@ -6,15 +6,16 @@ import Login from "./components/Login";
 import Layout from "./components/Layout";
 import Dashboard from "./components/Dashboard";
 import RegisterSale from "./components/RegisterSale";
-import GlobalSales from "./components/GlobalSales";
-import PrivateSales from "./components/PrivateSales";
+import { GlobalSales } from "./components/GlobalSales";
+import { PrivateSales } from "./components/GlobalSales";
+import Profile from "./components/Profile";
 
 const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
-  if (loading) return <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", color: "var(--gray-500)" }}>Cargando...</div>;
+  if (loading) return <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", color: "#888780" }}>Cargando...</div>;
   return user ? children : <Navigate to="/login" replace />;
 }
 
@@ -39,6 +40,7 @@ export default function App() {
           <Route path="registrar" element={<RegisterSale />} />
           <Route path="globales" element={<GlobalSales />} />
           <Route path="privadas" element={<PrivateSales />} />
+          <Route path="perfil" element={<Profile />} />
         </Route>
       </Routes>
     </AuthContext.Provider>
