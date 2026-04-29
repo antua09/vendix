@@ -10,56 +10,77 @@
   --teal-dark: #0F6E56;
   --amber: #BA7517;
   --amber-light: #FAEEDA;
-  --coral: #D85A30;
-  --gray-50: #F8F8F7;
-  --gray-100: #EFEFED;
-  --gray-300: #C5C5C0;
-  --gray-500: #888780;
-  --gray-700: #444441;
-  --gray-900: #1A1A18;
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
   --shadow-md: 0 4px 16px rgba(0,0,0,0.1);
+  --bottom-nav: 60px;
+
+  /* Light mode */
+  --bg: #F8F8F7;
+  --surface: #ffffff;
+  --surface2: #F8F8F7;
+  --border: #EFEFED;
+  --border2: #C5C5C0;
+  --text: #1A1A18;
+  --text2: #444441;
+  --text3: #888780;
+}
+
+[data-theme="dark"] {
+  --bg: #0F0F0E;
+  --surface: #1A1A18;
+  --surface2: #242422;
+  --border: #2A2A28;
+  --border2: #444441;
+  --text: #F0F0EE;
+  --text2: #C5C5C0;
+  --text3: #888780;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.4);
+  --teal-light: #0F3D2E;
+  --amber-light: #3D2A08;
+}
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
 }
 
 body {
   font-family: "DM Sans", system-ui, sans-serif;
   font-size: 14px;
-  color: var(--gray-900);
-  background: var(--gray-50);
-  min-height: 100vh;
-  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .2s, color .2s;
 }
 
 input, select, textarea {
   font-family: inherit;
-  font-size: 14px;
-  color: var(--gray-900);
-  background: #fff;
-  border: 1px solid var(--gray-300);
+  font-size: 16px;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border2);
   border-radius: var(--radius-sm);
-  padding: 8px 12px;
+  padding: 10px 12px;
   outline: none;
   transition: border-color .15s;
   width: 100%;
+  -webkit-appearance: none;
 }
 input:focus, select:focus, textarea:focus {
   border-color: var(--teal);
   box-shadow: 0 0 0 3px rgba(29,158,117,0.12);
 }
-
-button {
-  font-family: inherit;
-  cursor: pointer;
+input:disabled {
+  background: var(--surface2);
+  color: var(--text3);
 }
 
+button { font-family: inherit; cursor: pointer; }
 a { text-decoration: none; color: inherit; }
-
 img { max-width: 100%; }
-
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--gray-300); border-radius: 3px; }
+::-webkit-scrollbar { width: 0; }

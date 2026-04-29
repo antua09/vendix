@@ -9,13 +9,14 @@ import RegisterSale from "./components/RegisterSale";
 import { GlobalSales } from "./components/GlobalSales";
 import { PrivateSales } from "./components/GlobalSales";
 import Profile from "./components/Profile";
+import Chat from "./components/Chat";
 
 const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
-  if (loading) return <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", color: "#888780" }}>Cargando...</div>;
+  if (loading) return <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", color: "var(--text3)" }}>Cargando...</div>;
   return user ? children : <Navigate to="/login" replace />;
 }
 
@@ -24,11 +25,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setLoading(false);
-    });
-    return unsub;
+    return onAuthStateChanged(auth, (u) => { setUser(u); setLoading(false); });
   }, []);
 
   return (
@@ -40,6 +37,7 @@ export default function App() {
           <Route path="registrar" element={<RegisterSale />} />
           <Route path="globales" element={<GlobalSales />} />
           <Route path="privadas" element={<PrivateSales />} />
+          <Route path="chat" element={<Chat />} />
           <Route path="perfil" element={<Profile />} />
         </Route>
       </Routes>
