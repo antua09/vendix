@@ -1,13 +1,31 @@
 import { useEffect, useState } from "react";
-import { collection, query, orderBy, onSnapshot, deleteDoc, doc, setDoc, getDoc } from "firebase/firestore";
+import { collection, query, orderBy, onSnapshot, deleteDoc, doc, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "../App";
-import { ADMIN_UID } from "../config";
-import { EmptyState, Toast } from "./ui";
+import { EmptyState } from "./ui";
 import { Navigate } from "react-router-dom";
 
 function fmx(n) { return new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(n); }
 function fdate(ts) { return ts?.toDate?.().toLocaleDateString("es-MX", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) || "—"; }
+
+function exportCSV(sales) {
+  const headers = ["Producto", "Categoría", "Cantidad", "Precio", "Total", "Vendedor", "Ubicación", "Notas", "Fecha"];
+  const rows = sales.map(s => [
+    s.product, s.category || "", s.quantity, s.price, s.price * s.quantity,
+    s.sellerName, s.location || "", s.notes || "",
+    s.createdAt?.toDate?.().toLocaleDateString("es-MX") || "",
+  ]);
+  const csv = [headers, ...rows]
+    .map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(","))
+    .join("\n");
+  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `vendix-ventas-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 function ConfirmModal({ title, message, onConfirm, onCancel }) {
   return (
@@ -24,20 +42,18 @@ function ConfirmModal({ title, message, onConfirm, onCancel }) {
   );
 }
 
-function UsersTab({ onToast }) {
+function UsersTab({ onToast, currentUserId }) {
   const [users, setUsers] = useState([]);
   const [banned, setBanned] = useState({});
   const [confirm, setConfirm] = useState(null);
 
   useEffect(() => {
-    // Escuchar todos los usuarios registrados en Firestore
     return onSnapshot(collection(db, "users"), snap => {
       setUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
     });
   }, []);
 
   useEffect(() => {
-    // Escuchar lista de baneados
     return onSnapshot(collection(db, "banned"), snap => {
       const map = {};
       snap.docs.forEach(d => map[d.id] = true);
@@ -57,6 +73,12 @@ function UsersTab({ onToast }) {
     setConfirm(null);
   }
 
+  async function toggleRole(user) {
+    const newRole = user.role === "admin" ? "vendor" : "admin";
+    await updateDoc(doc(db, "users", user.id), { role: newRole });
+    onToast(`${user.displayName} ahora es ${newRole === "admin" ? "Admin" : "Vendedor"} ✓`);
+  }
+
   return (
     <div>
       <p style={{ fontSize: 13, color: "var(--text3)", marginBottom: 14 }}>{users.length} usuarios registrados</p>
@@ -73,12 +95,25 @@ function UsersTab({ onToast }) {
                   <div style={{ fontWeight: 500, fontSize: 14, color: "var(--text)" }}>{u.displayName}</div>
                   <div style={{ fontSize: 12, color: "var(--text3)" }}>{u.email}</div>
                 </div>
-                {u.id === ADMIN_UID
-                  ? <span style={{ fontSize: 11, padding: "3px 10px", background: "var(--teal-light)", color: "var(--teal-dark)", borderRadius: 20, fontWeight: 500 }}>Admin</span>
-                  : <button onClick={() => setConfirm(u)} style={{ padding: "6px 12px", background: banned[u.id] ? "var(--teal-light)" : "#FAECE7", color: banned[u.id] ? "var(--teal-dark)" : "#993C1D", border: "none", borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: "pointer" }}>
-                      {banned[u.id] ? "Desbanear" : "Banear"}
-                    </button>
-                }
+                <div style={{ display: "flex", gap: 6, flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                  {u.id === currentUserId
+                    ? <span style={{ fontSize: 11, padding: "3px 10px", background: "var(--teal-light)", color: "var(--teal-dark)", borderRadius: 20, fontWeight: 500 }}>Tú</span>
+                    : <>
+                        <button
+                          onClick={() => toggleRole(u)}
+                          style={{ padding: "5px 10px", background: u.role === "admin" ? "var(--teal-light)" : "var(--surface2)", color: u.role === "admin" ? "var(--teal-dark)" : "var(--text3)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 11, fontWeight: 500, cursor: "pointer" }}
+                        >
+                          {u.role === "admin" ? "Admin ✓" : "Vendedor"}
+                        </button>
+                        <button
+                          onClick={() => setConfirm(u)}
+                          style={{ padding: "5px 10px", background: banned[u.id] ? "var(--teal-light)" : "#FAECE7", color: banned[u.id] ? "var(--teal-dark)" : "#993C1D", border: "none", borderRadius: 8, fontSize: 11, fontWeight: 500, cursor: "pointer" }}
+                        >
+                          {banned[u.id] ? "Desbanear" : "Banear"}
+                        </button>
+                      </>
+                  }
+                </div>
               </div>
             ))}
           </div>
@@ -128,7 +163,16 @@ function SalesTab({ onToast }) {
         </div>
       </div>
 
-      <input type="text" placeholder="🔍 Buscar venta o vendedor..." value={search} onChange={e => setSearch(e.target.value)} style={{ marginBottom: 14 }} />
+      <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+        <input type="text" placeholder="🔍 Buscar venta o vendedor..." value={search} onChange={e => setSearch(e.target.value)} style={{ flex: 1 }} />
+        <button
+          onClick={() => exportCSV(filtered)}
+          disabled={filtered.length === 0}
+          style={{ padding: "9px 14px", background: "var(--surface)", border: "1px solid var(--border2)", borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: filtered.length ? "pointer" : "not-allowed", color: "var(--text2)", whiteSpace: "nowrap", opacity: filtered.length ? 1 : 0.5 }}
+        >
+          ↓ CSV
+        </button>
+      </div>
 
       {filtered.length === 0
         ? <EmptyState icon="🧾" title="Sin ventas" sub="No hay ventas que mostrar" />
@@ -167,11 +211,11 @@ function SalesTab({ onToast }) {
 }
 
 export default function Admin() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [tab, setTab] = useState("users");
   const [toast, setToast] = useState("");
 
-  if (user?.uid !== ADMIN_UID) return <Navigate to="/" replace />;
+  if (!isAdmin) return <Navigate to="/" replace />;
 
   function onToast(msg) { setToast(msg); setTimeout(() => setToast(""), 2500); }
 
@@ -198,7 +242,7 @@ export default function Admin() {
         <button style={tabStyle("sales")} onClick={() => setTab("sales")}>🧾 Ventas</button>
       </div>
 
-      {tab === "users" && <UsersTab onToast={onToast} />}
+      {tab === "users" && <UsersTab onToast={onToast} currentUserId={user?.uid} />}
       {tab === "sales" && <SalesTab onToast={onToast} />}
 
       {toast && (

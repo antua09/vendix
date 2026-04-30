@@ -34,25 +34,41 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [banned, setBanned] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    return onAuthStateChanged(auth, (u) => {
+    let unsubBanned = null;
+    let unsubRole = null;
+
+    const unsubAuth = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);
+
+      unsubBanned?.();
+      unsubRole?.();
+
       if (u) {
-        // Escuchar si el usuario es baneado en tiempo real
-        const unsub = onSnapshot(doc(db, "banned", u.uid), snap => {
+        unsubBanned = onSnapshot(doc(db, "banned", u.uid), snap => {
           setBanned(snap.exists());
         });
-        return unsub;
+        unsubRole = onSnapshot(doc(db, "users", u.uid), snap => {
+          setIsAdmin(snap.data()?.role === "admin");
+        });
       } else {
         setBanned(false);
+        setIsAdmin(false);
       }
     });
+
+    return () => {
+      unsubAuth();
+      unsubBanned?.();
+      unsubRole?.();
+    };
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, banned }}>
+    <AuthContext.Provider value={{ user, loading, banned, isAdmin }}>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>

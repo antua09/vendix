@@ -1,16 +1,16 @@
-import { useState } from "react";
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { signOut } from "firebase/auth";
-import { auth } from "../firebase";
+import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { auth, db } from "../firebase";
 import { useAuth } from "../App";
 import { useTheme } from "../theme.jsx";
-import { ADMIN_UID } from "../config";
 
 const NAV = [
   { to: "/",          label: "Panel",    end: true, icon: HomeIcon              },
   { to: "/registrar", label: "Vender",              icon: PlusIcon              },
   { to: "/globales",  label: "Equipo",              icon: TeamIcon              },
-  { to: "/chat",      label: "Chat",                icon: ChatIcon              },
+  { to: "/chat",      label: "Chat",                icon: ChatIcon, badge: true },
   { to: "/perfil",    label: "Perfil",              icon: UserIcon              },
   { to: "/admin",     label: "Admin",               icon: ShieldIcon, adminOnly: true },
 ];
@@ -43,11 +43,41 @@ function ThemeToggle() {
   );
 }
 
+function UnreadDot({ count }) {
+  if (!count) return null;
+  return (
+    <div style={{ position: "absolute", top: -4, right: -6, minWidth: 14, height: 14, borderRadius: 7, background: "#D93025", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#fff", padding: "0 3px" }}>
+      {count > 9 ? "9+" : count}
+    </div>
+  );
+}
+
 export default function Layout() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const isAdmin = user?.uid === ADMIN_UID;
+  const [chatUnread, setChatUnread] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, "chat"), orderBy("createdAt", "asc"));
+    return onSnapshot(q, snap => {
+      const lastRead = parseInt(localStorage.getItem("vendix-chat-read") || "0");
+      const unread = snap.docs.filter(d => {
+        const ts = d.data().createdAt?.toMillis?.() || 0;
+        return ts > lastRead && d.data().senderId !== user.uid;
+      }).length;
+      setChatUnread(unread);
+    });
+  }, [user]);
+
+  useEffect(() => {
+    if (location.pathname === "/chat") {
+      localStorage.setItem("vendix-chat-read", Date.now().toString());
+      setChatUnread(0);
+    }
+  }, [location.pathname]);
 
   async function logout() { await signOut(auth); navigate("/login"); }
 
@@ -70,9 +100,17 @@ export default function Layout() {
   const SideContent = ({ onClose }) => (
     <>
       <nav style={{ flex: 1, display: "flex", flexDirection: "column", gap: 2 }}>
-        {visibleNav.map(({ to, label, icon: Icon, end }) => (
+        {visibleNav.map(({ to, label, icon: Icon, end, badge }) => (
           <NavLink key={to} to={to} end={end} style={sideNavStyle} onClick={onClose}>
-            {({ isActive }) => (<><Icon active={isActive} /><span>{label}</span></>)}
+            {({ isActive }) => (
+              <>
+                <div style={{ position: "relative" }}>
+                  <Icon active={isActive} />
+                  {badge && <UnreadDot count={chatUnread} />}
+                </div>
+                <span>{label}</span>
+              </>
+            )}
           </NavLink>
         ))}
       </nav>
@@ -139,11 +177,14 @@ export default function Layout() {
 
         {/* Bottom nav */}
         <nav className="mobile-bottom-nav" style={{ position: "fixed", bottom: 0, left: 0, right: 0, height: 60, background: "var(--surface)", borderTop: "1px solid var(--border)", display: "flex", alignItems: "center", zIndex: 100, paddingBottom: "env(safe-area-inset-bottom)" }}>
-          {visibleNav.map(({ to, label, icon: Icon, end }) => (
+          {visibleNav.map(({ to, label, icon: Icon, end, badge }) => (
             <NavLink key={to} to={to} end={end} style={bottomStyle}>
               {({ isActive }) => (
                 <>
-                  <Icon active={isActive} />
+                  <div style={{ position: "relative" }}>
+                    <Icon active={isActive} />
+                    {badge && <UnreadDot count={chatUnread} />}
+                  </div>
                   <span style={{ fontSize: 10, fontWeight: isActive ? 600 : 400, color: isActive ? "var(--teal)" : "var(--text3)" }}>{label}</span>
                 </>
               )}

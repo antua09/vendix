@@ -17,6 +17,26 @@ async function uploadToImgBB(file) {
   return data.data.url;
 }
 
+function validate(form) {
+  const errors = {};
+  const product = form.product.trim();
+  if (!product) errors.product = "El nombre es obligatorio";
+  else if (product.length < 2) errors.product = "Mínimo 2 caracteres";
+  else if (product.length > 80) errors.product = "Máximo 80 caracteres";
+
+  const price = Number(form.price);
+  if (!form.price) errors.price = "El precio es obligatorio";
+  else if (isNaN(price) || price <= 0) errors.price = "Debe ser mayor a $0";
+  else if (price > 9_999_999) errors.price = "Precio demasiado alto";
+
+  const qty = Number(form.quantity);
+  if (!form.quantity) errors.quantity = "La cantidad es obligatoria";
+  else if (!Number.isInteger(qty) || qty < 1) errors.quantity = "Debe ser entero mayor a 0";
+  else if (qty > 9999) errors.quantity = "Máximo 9,999 unidades";
+
+  return errors;
+}
+
 export default function RegisterSale() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -26,19 +46,45 @@ export default function RegisterSale() {
   const [photoPreview, setPhotoPreview] = useState(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState("");
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
 
-  function set(key, val) { setForm(f => ({ ...f, [key]: val })); }
+  function set(key, val) {
+    setForm(f => ({ ...f, [key]: val }));
+    if (touched[key]) {
+      const next = { ...form, [key]: val };
+      const e = validate(next);
+      setErrors(prev => ({ ...prev, [key]: e[key] }));
+    }
+  }
+
+  function touch(key) {
+    setTouched(t => ({ ...t, [key]: true }));
+    const e = validate(form);
+    setErrors(prev => ({ ...prev, [key]: e[key] }));
+  }
+
   function onPhoto(e) { const file = e.target.files[0]; if (!file) return; setPhoto(file); setPhotoPreview(URL.createObjectURL(file)); }
   function removePhoto() { setPhoto(null); setPhotoPreview(null); if (fileRef.current) fileRef.current.value = ""; }
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!form.product || !form.price || !form.quantity) return;
+    const allTouched = { product: true, price: true, quantity: true };
+    setTouched(allTouched);
+    const e2 = validate(form);
+    setErrors(e2);
+    if (Object.keys(e2).length > 0) return;
+
     setSaving(true);
     try {
       let photoURL = null;
       if (photo) photoURL = await uploadToImgBB(photo);
-      const saleData = { product: form.product, quantity: Number(form.quantity), price: Number(form.price), location: form.location, notes: form.notes, category: form.category, photoURL, sellerId: user.uid, sellerName: user.displayName, isPrivate: form.isPrivate, createdAt: serverTimestamp() };
+      const saleData = {
+        product: form.product.trim(), quantity: Number(form.quantity), price: Number(form.price),
+        location: form.location.trim(), notes: form.notes.trim(), category: form.category,
+        photoURL, sellerId: user.uid, sellerName: user.displayName,
+        isPrivate: form.isPrivate, createdAt: serverTimestamp(),
+      };
       if (form.isPrivate) await addDoc(collection(db, "users", user.uid, "privateSales"), saleData);
       else await addDoc(collection(db, "sales"), saleData);
       setToast(form.isPrivate ? "Venta privada guardada ✓" : "Venta registrada en el equipo ✓");
@@ -51,12 +97,13 @@ export default function RegisterSale() {
   const fmx = n => new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(n);
   const CARD = { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", padding: "1.25rem", marginBottom: 12 };
   const LABEL = { display: "block", fontSize: 12, fontWeight: 500, color: "var(--text2)", marginBottom: 6 };
+  const ERR = { fontSize: 11, color: "#D93025", marginTop: 4, display: "block" };
 
   return (
     <div>
       <h1 style={{ fontSize: 18, fontWeight: 600, marginBottom: 4, color: "var(--text)" }}>Registrar venta</h1>
       <p style={{ fontSize: 13, color: "var(--text3)", marginBottom: 16 }}>{user.displayName}</p>
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} noValidate>
         <div style={CARD}>
           <label style={LABEL}>Foto del producto</label>
           {photoPreview
@@ -75,11 +122,39 @@ export default function RegisterSale() {
         <div style={CARD}>
           <div style={{ marginBottom: 12 }}>
             <label style={LABEL}>Producto *</label>
-            <input type="text" placeholder="Nombre del producto" value={form.product} onChange={e => set("product", e.target.value)} required />
+            <input
+              type="text"
+              placeholder="Nombre del producto"
+              value={form.product}
+              onChange={e => set("product", e.target.value)}
+              onBlur={() => touch("product")}
+              style={{ borderColor: errors.product && touched.product ? "#D93025" : undefined }}
+            />
+            {errors.product && touched.product && <span style={ERR}>{errors.product}</span>}
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-            <div><label style={LABEL}>Cantidad *</label><input type="number" min="1" step="1" value={form.quantity} onChange={e => set("quantity", e.target.value)} required /></div>
-            <div><label style={LABEL}>Precio (MXN) *</label><input type="number" min="0" step="0.01" placeholder="0.00" value={form.price} onChange={e => set("price", e.target.value)} required /></div>
+            <div>
+              <label style={LABEL}>Cantidad *</label>
+              <input
+                type="number" min="1" step="1"
+                value={form.quantity}
+                onChange={e => set("quantity", e.target.value)}
+                onBlur={() => touch("quantity")}
+                style={{ borderColor: errors.quantity && touched.quantity ? "#D93025" : undefined }}
+              />
+              {errors.quantity && touched.quantity && <span style={ERR}>{errors.quantity}</span>}
+            </div>
+            <div>
+              <label style={LABEL}>Precio (MXN) *</label>
+              <input
+                type="number" min="0" step="0.01" placeholder="0.00"
+                value={form.price}
+                onChange={e => set("price", e.target.value)}
+                onBlur={() => touch("price")}
+                style={{ borderColor: errors.price && touched.price ? "#D93025" : undefined }}
+              />
+              {errors.price && touched.price && <span style={ERR}>{errors.price}</span>}
+            </div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
             <div><label style={LABEL}>Categoría</label><select value={form.category} onChange={e => set("category", e.target.value)}><option value="">Sin categoría</option>{CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}</select></div>

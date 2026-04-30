@@ -1,3 +1,5 @@
+import { Component } from "react";
+
 // ---- StatCard ----
 export function StatCard({ label, value, sub, accent, icon }) {
   return (
@@ -95,10 +97,22 @@ export function SaleCard({ sale }) {
 }
 
 // ---- Toast ----
-export function Toast({ message }) {
+const TOAST_COLORS = {
+  success: "var(--teal)",
+  error: "#D93025",
+  info: "#185FA5",
+  warning: "var(--amber)",
+};
+
+export function Toast({ message, type = "success" }) {
   if (!message) return null;
   return (
-    <div style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", background: "var(--teal)", color: "#fff", padding: "10px 24px", borderRadius: 24, fontSize: 13, fontWeight: 500, boxShadow: "var(--shadow-md)", zIndex: 999, pointerEvents: "none" }}>
+    <div style={{
+      position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)",
+      background: TOAST_COLORS[type] || TOAST_COLORS.success,
+      color: "#fff", padding: "10px 24px", borderRadius: 24, fontSize: 13, fontWeight: 500,
+      boxShadow: "var(--shadow-md)", zIndex: 999, pointerEvents: "none",
+    }}>
       {message}
     </div>
   );
@@ -113,4 +127,32 @@ export function EmptyState({ icon = "📭", title, sub }) {
       {sub && <div style={{ fontSize: 13, color: "var(--text3)" }}>{sub}</div>}
     </div>
   );
+}
+
+// ---- ErrorBoundary ----
+export class ErrorBoundary extends Component {
+  state = { error: null };
+
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh", gap: 12, padding: 20, background: "var(--bg)" }}>
+          <div style={{ fontSize: 40 }}>⚠️</div>
+          <h2 style={{ fontWeight: 600, color: "var(--text)" }}>Algo salió mal</h2>
+          <p style={{ fontSize: 13, color: "var(--text3)", textAlign: "center", maxWidth: 300 }}>{this.state.error.message}</p>
+          <button
+            onClick={() => this.setState({ error: null })}
+            style={{ padding: "9px 20px", background: "var(--teal)", color: "#fff", border: "none", borderRadius: 8, fontSize: 14, cursor: "pointer", marginTop: 4 }}
+          >
+            Intentar de nuevo
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
