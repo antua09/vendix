@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, sendPasswordResetEmail } from "firebase/auth";
-import { auth } from "../firebase";
+import { doc, setDoc } from "firebase/firestore";
+import { auth, db } from "../firebase";
 import { useAuth } from "../App";
 import { Navigate } from "react-router-dom";
 
@@ -24,9 +25,16 @@ export default function Login() {
       if (mode === "register") {
         if (!form.name.trim()) { setError("Escribe tu nombre"); setLoading(false); return; }
         const cred = await createUserWithEmailAndPassword(auth, form.email, form.password);
-        await updateProfile(cred.user, { displayName: form.name.trim() });
+        const displayName = form.name.trim();
+        await updateProfile(cred.user, { displayName });
+        await setDoc(doc(db, "users", cred.user.uid), {
+          displayName, email: form.email, role: "vendor", createdAt: new Date().toISOString(),
+        });
       } else if (mode === "reset") {
-        await sendPasswordResetEmail(auth, form.email);
+        await sendPasswordResetEmail(auth, form.email, {
+          url: window.location.origin + "/login",
+          handleCodeInApp: false,
+        });
         setSuccess("Te enviamos un correo para restablecer tu contraseña.");
         setLoading(false); return;
       } else {
